@@ -11,12 +11,14 @@ type MarkedZodDefinition = {
 /**
  * Mark a Zod schema as a Midscene locator field.
  *
- * The marker lives on Zod's definition object so schema clones created by
- * helpers such as `.describe()` retain it. Wrapper schemas are handled by
- * {@link unwrapZodField} when the marker is read.
+ * The marker lives on the unwrapped Zod definition object so schema clones
+ * created by helpers such as `.describe()` retain it, regardless of whether
+ * wrapper schemas are applied before or after this function.
  */
 export function markMidsceneLocatorField<T extends z.ZodTypeAny>(field: T): T {
-  (field._def as MarkedZodDefinition)[MIDSCENE_LOCATOR_FIELD_MARKER] = true;
+  const actualField = unwrapZodField(field) as z.ZodTypeAny;
+  (actualField._def as MarkedZodDefinition)[MIDSCENE_LOCATOR_FIELD_MARKER] =
+    true;
   return field;
 }
 

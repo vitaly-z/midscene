@@ -205,6 +205,13 @@ describe('zod-schema-utils', () => {
       expect(isMidsceneLocatorField(schema)).toBe(true);
     });
 
+    it('should handle wrappers applied before marking the locator field', () => {
+      const schema = markMidsceneLocatorField(
+        z.object({ prompt: z.string() }).nullable().optional(),
+      );
+      expect(isMidsceneLocatorField(schema)).toBe(true);
+    });
+
     it('should handle default and transform locator wrappers', () => {
       const locatorSchema = markMidsceneLocatorField(
         z.object({ prompt: z.string() }),
