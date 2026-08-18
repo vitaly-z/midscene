@@ -32,6 +32,7 @@ const MEMORY_STEP_NOTES = [
 type BuildStandardPlanningSystemPromptInput = {
   actionSpace: DeviceAction<any>[];
   includeSubGoals?: boolean;
+  hasExtraActions?: boolean;
 } & (
   | {
       includeLocateInPlanning: true;
@@ -51,6 +52,7 @@ export async function buildStandardPlanningSystemPrompt(
     includeLocateInPlanning,
     locatePromptSpec,
     includeSubGoals,
+    hasExtraActions,
   } = input;
   const preferredLanguage = getPreferredLanguage();
 
@@ -62,7 +64,10 @@ export async function buildStandardPlanningSystemPrompt(
     includeLocateInPlanning,
     locatePromptSpec,
   });
-  const actionStepNotes = buildPlanningActionGuidelines(actionSpace);
+  const actionStepNotes = buildPlanningActionGuidelines(
+    actionSpace,
+    hasExtraActions,
+  );
 
   const shouldIncludeSubGoals = includeSubGoals ?? false;
 

@@ -151,6 +151,7 @@ export async function standardPlan(
   const systemPrompt = await buildStandardPlanningSystemPrompt({
     actionSpace: opts.actionSpace,
     includeSubGoals,
+    hasExtraActions: opts.hasExtraActions,
     ...(opts.includeLocateInPlanning && locateResultAdapter
       ? {
           includeLocateInPlanning: true,

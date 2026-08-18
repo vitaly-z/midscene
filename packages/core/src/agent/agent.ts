@@ -77,6 +77,10 @@ import {
   defineActionSleep,
 } from '../device';
 import { validateAgentCacheInput } from './cache-config';
+import {
+  createExtraActionExecutionOptions,
+  loadExtraActions,
+} from './extra-actions';
 import { FileChooserAccepter } from './file-chooser';
 import { Insight } from './insight';
 import { MetricsCollector, type MidsceneUsageMetrics } from './metrics';
@@ -118,6 +122,7 @@ export type AiActOptions = {
   cacheable?: boolean;
   fileChooserAccept?: string | string[];
   fileChooserAllowedDir?: string;
+  loadExtraActions?: string[];
   deepThink?: DeepThinkOption;
   deepLocate?: boolean;
   abortSignal?: AbortSignal;
@@ -1131,10 +1136,40 @@ export class Agent<InterfaceType extends AbstractInterface = AbstractInterface>
 
     const runAiAct = async () => {
       const planningModel = this.resolveModelRuntime('planning');
+      const extraActionPaths = opt?.loadExtraActions ?? [];
+      if (
+        extraActionPaths.length > 0 &&
+        planningModel.adapter.planning.kind === 'custom'
+      ) {
+        throw new Error(
+          `The "loadExtraActions" option is not supported by custom planning adapters (modelFamily: ${planningModel.config.modelFamily ?? 'unknown'}). Use a model with the generic planning adapter.`,
+        );
+      }
+      const extraActions = await loadExtraActions(
+        extraActionPaths,
+        this.fullActionSpace,
+        this.interface.manifestInterface?.() ?? this.interface.interfaceType,
+      );
+      const extraActionExecution = createExtraActionExecutionOptions(
+        extraActions,
+        this.interface,
+      );
+      let initialExtraActionSnapshot =
+        await extraActionExecution?.createSnapshot({ signal: abortSignal });
       const defaultModel = this.resolveModelRuntime('default');
       const aiActContext =
         opt?.context !== undefined ? opt.context : this.aiActContext;
-      const cachePrompt = buildPromptWithContext(taskPrompt, aiActContext);
+      const promptWithContext = buildPromptWithContext(
+        taskPrompt,
+        aiActContext,
+      );
+      const cachePromptForSnapshot = (fingerprint?: string) =>
+        fingerprint
+          ? `${promptWithContext}\n\n<midscene_extra_actions>${fingerprint}</midscene_extra_actions>`
+          : promptWithContext;
+      const cachePrompt = cachePromptForSnapshot(
+        initialExtraActionSnapshot?.fingerprint,
+      );
       // Controls the aiAct planning mode, such as sub-goal prompts and locate result strategy.
       let deepThink = opt?.deepThink === true;
       if (deepThink && planningModel.adapter.planning.kind === 'custom') {
@@ -1197,6 +1232,10 @@ export class Agent<InterfaceType extends AbstractInterface = AbstractInterface>
               error instanceof Error ? error.message : String(error)
             }`,
           );
+          initialExtraActionSnapshot =
+            await extraActionExecution?.createSnapshot({
+              signal: abortSignal,
+            });
         }
       }
 
@@ -1207,15 +1246,22 @@ export class Agent<InterfaceType extends AbstractInterface = AbstractInterface>
         planningModel,
         defaultModel,
         includeLocateInPlanning,
-        aiActContext,
-        cacheable,
-        replanningCycleLimit,
-        imagesIncludeCount,
-        deepThink,
-        undefined,
-        deepLocate,
-        abortSignal,
-        internalReportDisplay,
+        {
+          aiActContext,
+          cacheable,
+          replanningCycleLimitOverride: replanningCycleLimit,
+          imagesIncludeCount,
+          deepThink,
+          deepLocate,
+          abortSignal,
+          reportOptions: internalReportDisplay,
+          extraActions: extraActionExecution
+            ? {
+                ...extraActionExecution,
+                initialSnapshot: initialExtraActionSnapshot,
+              }
+            : undefined,
+        },
       );
 
       // update cache
