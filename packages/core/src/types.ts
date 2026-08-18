@@ -806,6 +806,7 @@ export interface ReportMeta {
   sdkVersion: string;
   modelBriefs: ModelBrief[];
   deviceType?: string;
+  manifestInterface: string;
 }
 
 // Backward-compatible aliases for existing external consumers.
@@ -821,6 +822,7 @@ export interface IReportActionDump {
   modelBriefs: ModelBrief[];
   executions: IExecutionDump[];
   deviceType?: string;
+  manifestInterface: string;
 }
 
 // Backward-compatible aliases for existing external consumers.
